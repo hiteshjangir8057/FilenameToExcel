@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FilenameToExcel - Pro Data Studio</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #1e40af; --primary-light: #eff6ff; --danger: #dc2626; 
+            --success: #15803d; --slate: #334155; --gray-bg: #f8fafc;
+            --active-color: #1e40af;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Inter', sans-serif; background: #e2e8f0; height: 100vh; overflow: hidden; padding: 10px; }
+        
+        .app-container { 
+            height: calc(100vh - 20px); background: white; border-radius: 12px;
+            display: flex; flex-direction: column; box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+            border: 1px solid #cbd5e1;
+        }
+
+        /* Compact Header */
+        .header { 
+            display: flex; justify-content: space-between; align-items: center; 
+            padding: 10px 20px; border-bottom: 1px solid #e2e8f0; background: #fff;
+            border-radius: 12px 12px 0 0;
+        }
+        .brand { font-size: 22px; font-weight: 800; color: var(--primary); letter-spacing: -0.5px; }
+        .session-box { display: flex; align-items: center; gap: 10px; }
+        .session-box input { 
+            padding: 6px 12px; border: 1px solid #cbd5e1; border-radius: 6px; 
+            width: 250px; font-size: 13px; font-weight: 600; outline: none;
+        }
+
+        /* Slim Toolbar */
+        .toolbar { 
+            display: flex; gap: 8px; padding: 8px 20px; background: var(--gray-bg); 
+            align-items: center; border-bottom: 1px solid #e2e8f0;
+        }
+        .search-input { flex-grow: 1; padding: 7px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; }
+
+        /* Action Buttons */
+        .btn { 
+            padding: 7px 14px; border: none; border-radius: 6px; cursor: pointer; 
+            font-weight: 600; color: white; font-size: 12px; display: flex; align-items: center; gap: 5px;
+            transition: all 0.2s;
+        }
+        .btn-blue { background: var(--primary); }
+        .btn-indigo { background: #4f46e5; }
+        .btn-green { background: var(--success); }
+        .btn-red { background: var(--danger); }
+        .btn:hover { filter: brightness(1.1); transform: translateY(-1px); }
+
+        /* Compact Splitter Panel */
+        #auditPanel { padding: 8px 20px; border-bottom: 1px solid #e2e8f0; display: none; }
+        .symbol-tags { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+        .tag-label { font-size: 11px; font-weight: 700; color: #64748b; margin-right: 5px; text-transform: uppercase; }
+        .symbol-tag { 
+            background: #fff; border: 1px solid #cbd5e1; padding: 3px 10px; 
+            border-radius: 4px; font-size: 14px; cursor: pointer; font-family: monospace; font-weight: 700;
+        }
+        .active-sep { background: var(--success) !important; color: white !important; border-color: var(--success) !important; }
+
+        /* Professional Table Area */
+        .table-area { overflow: auto; flex-grow: 1; position: relative; }
+        table { width: 100%; border-collapse: collapse; min-width: 1200px; table-layout: auto; }
+        
+        thead th { 
+            position: sticky; top: 0; z-index: 50; 
+            background: var(--slate); color: white; 
+            padding: 10px 12px; text-align: left; font-size: 12px; font-weight: 600;
+            border-right: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        td { 
+            border-bottom: 1px solid #f1f5f9; padding: 8px 12px; font-size: 13px; 
+            color: #1e293b; border-right: 1px solid #f1f5f9;
+        }
+        tr:nth-child(even) { background-color: #f8fafc; }
+        tr:hover { background-color: #f1f5f9; }
+        
+        .preview-col { background: #f0fdf4; color: #166534; font-weight: 700; font-family: monospace; font-size: 12px; }
+        .col-del { float: right; background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 14px; font-weight: bold; }
+        .col-del:hover { color: #f87171; }
+
+        /* Slim History Bar */
+        .history-list { 
+            display: flex; gap: 10px; padding: 10px 20px; background: #fff; 
+            border-top: 1px solid #e2e8f0; border-radius: 0 0 12px 12px; overflow-x: auto;
+        }
+        .history-item { 
+            min-width: 130px; padding: 6px 12px; border-radius: 6px; cursor: pointer; 
+            color: white; position: relative; font-size: 11px; white-space: nowrap;
+            display: flex; flex-direction: column; justify-content: center;
+        }
+        .del-session { position: absolute; top: 2px; right: 5px; color: rgba(255,255,255,0.7); cursor: pointer; border: none; background: none; font-size: 12px; }
+
+        #toast { 
+            position: fixed; top: 20px; left: 50%; transform: translateX(-50%); 
+            background: var(--dark); color: white; padding: 8px 20px; 
+            border-radius: 20px; display: none; z-index: 1000; font-size: 12px; font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+
+<div id="toast">Task Complete</div>
+
+<div class="app-container">
+    <div class="header">
+        <div class="brand">FilenameToExcel</div>
+        <div class="session-box">
+            <input type="text" id="excelName" placeholder="Untitled Session" oninput="autoSave()">
+        </div>
+    </div>
+
+    <div class="toolbar">
+        <label class="btn btn-blue">
+            📂 Upload Folder <input type="file" id="folderInput" webkitdirectory directory multiple style="display:none">
+        </label>
+        <label class="btn btn-indigo">
+            📄 Upload Files <input type="file" id="fileInput" multiple style="display:none">
+        </label>
+        
+        <button class="btn" style="background:var(--slate);" onclick="addNewColumn()">+ Column</button>
+        <input type="text" id="searchBox" class="search-input" onkeyup="searchData()" placeholder="Filter results...">
+        
+        <button class="btn btn-green" onclick="exportToExcel()">📊 Export XLSX</button>
+        <button class="btn btn-red" onclick="clearTable()">🗑️ Clear</button>
+    </div>
+
+    <div id="auditPanel">
+        <div class="symbol-tags">
+            <span class="tag-label">Separators:</span>
+            <div id="symbolList" style="display:flex; gap:6px;"></div>
+        </div>
+    </div>
+
+    <div class="table-area">
+        <table id="dataTable">
+            <thead>
+                <tr id="tableHeader">
+                    <th style="width:50px; text-align:center;">SN</th>
+                    <th contenteditable="true">ROLL NO <button class="col-del" onclick="deleteColumn(this)">×</button></th>
+                    <th contenteditable="true">STUDENT NAME <button class="col-del" onclick="deleteColumn(this)">×</button></th>
+                    <th contenteditable="true">FATHER NAME <button class="col-del" onclick="deleteColumn(this)">×</button></th>
+                    <th contenteditable="true">VILLAGE <button class="col-del" onclick="deleteColumn(this)">×</button></th>
+                    <th contenteditable="true">PERCENT <button class="col-del" onclick="deleteColumn(this)">×</button></th>
+                    <th contenteditable="true">SR NO <button class="col-del" onclick="deleteColumn(this)">×</button></th>
+                    <th style="background:#0f172a; width: 220px;">RENAME PREVIEW</th>
+                </tr>
+            </thead>
+            <tbody id="tableBody"></tbody>
+        </table>
+    </div>
+
+    <div class="history-list" id="historyList"></div>
+</div>
+
+<script>
+    let activeId = null;
+    let selectedSeps = ['_'];
+    const tableBody = document.getElementById('tableBody');
+    const tableHeader = document.getElementById('tableHeader');
+    const excelNameInput = document.getElementById('excelName');
+
+    function notify(msg) {
+        const t = document.getElementById('toast');
+        t.innerText = msg; t.style.display = 'block';
+        setTimeout(() => t.style.display = 'none', 1500);
+    }
+
+    // --- UPLOAD ---
+    document.getElementById('folderInput').addEventListener('change', e => {
+        const files = e.target.files;
+        if(files.length) processData(files, files[0].webkitRelativePath.split('/')[0]);
+    });
+
+    document.getElementById('fileInput').addEventListener('change', e => {
+        const files = e.target.files;
+        if(files.length) processData(files, excelNameInput.value || "Files_Data");
+    });
+
+    function processData(files, sName) {
+        const newId = Date.now();
+        const entries = Array.from(files).map(f => ({
+            n: f.name.replace(/\.[^/.]+$/, ""),
+            e: f.name.includes('.') ? f.name.split('.').pop() : ""
+        }));
+
+        let syms = new Set(['_']);
+        entries.forEach(f => {
+            const m = f.n.match(/[^a-zA-Z0-9\s_]/g);
+            if(m) m.forEach(s => syms.add(s));
+        });
+
+        const session = {
+            id: newId, name: sName, color: '#' + Math.floor(Math.random()*16777215).toString(16),
+            headers: ["ROLL NO", "STUDENT NAME", "FATHER NAME", "VILLAGE", "PERCENT", "SR NO"],
+            files: entries, seps: ['_'], allDetected: Array.from(syms), date: new Date().toLocaleDateString()
+        };
+
+        let db = JSON.parse(localStorage.getItem('pro_studio_db') || "[]");
+        db.unshift(session);
+        localStorage.setItem('pro_studio_db', JSON.stringify(db));
+        loadSession(newId);
+        notify("Data Loaded Successfully");
+    }
+
+    function loadSession(id) {
+        const db = JSON.parse(localStorage.getItem('pro_studio_db') || "[]");
+        const s = db.find(item => item.id === id);
+        if(!s) return;
+
+        activeId = id; selectedSeps = s.seps || ['_'];
+        document.documentElement.style.setProperty('--active-color', s.color);
+        excelNameInput.value = s.name;
+
+        const escaped = selectedSeps.map(sep => sep.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+        const splitRegex = new RegExp(escaped, 'g');
+
+        let max = 0;
+        s.files.forEach(f => {
+            const c = f.n.split(splitRegex).length;
+            if(c > max) max = c;
+        });
+
+        let headers = [...s.headers];
+        while(headers.length < max) headers.push("FIELD " + (headers.length + 1));
+
+        tableHeader.innerHTML = `<th style="width:50px; text-align:center;">SN</th>` + headers.map(h => `<th contenteditable="true">${h} <button class="col-del" onclick="deleteColumn(this)">×</button></th>`).join('') + `<th style="background:#0f172a;">RENAME PREVIEW</th>`;
+
+        tableBody.innerHTML = "";
+        s.files.forEach(f => {
+            const parts = f.n.split(splitRegex);
+            renderRow(parts, f.e);
+        });
+
+        document.getElementById('auditPanel').style.display = 'block';
+        document.getElementById('symbolList').innerHTML = s.allDetected.map(sym => `<span class="symbol-tag ${selectedSeps.includes(sym) ? 'active-sep' : ''}" onclick="toggleSep('${sym}')">${sym === ' ' ? 'Space' : sym}</span>`).join('');
+        
+        renderHistory();
+    }
+
+    function renderRow(parts, ext) {
+        const tr = document.createElement('tr');
+        let html = `<td style="font-weight:bold; text-align:center; color:#64748b;"></td>`;
+        for(let i=1; i < tableHeader.cells.length - 1; i++) {
+            html += `<td>${parts[i-1] || ""}</td>`;
+        }
+        const sep = selectedSeps[0] || "_";
+        const preview = parts.filter(p => p.trim() !== "").join(sep) + (ext ? "." + ext : "");
+        html += `<td class="preview-col">${preview}</td>`;
+        tr.innerHTML = html;
+        tableBody.appendChild(tr);
+        updateSN();
+    }
+
+    function toggleSep(sym) {
+        let db = JSON.parse(localStorage.getItem('pro_studio_db') || "[]");
+        const idx = db.findIndex(s => s.id === activeId);
+        if(idx !== -1) {
+            let list = db[idx].seps || [];
+            if(list.includes(sym)) list = list.filter(s => s !== sym);
+            else list.push(sym);
+            db[idx].seps = list;
+            localStorage.setItem('pro_studio_db', JSON.stringify(db));
+            loadSession(activeId);
+        }
+    }
+
+    function autoSave() {
+        if(!activeId) return;
+        let db = JSON.parse(localStorage.getItem('pro_studio_db') || "[]");
+        const idx = db.findIndex(s => s.id === activeId);
+        if(idx !== -1) {
+            db[idx].name = excelNameInput.value;
+            db[idx].headers = Array.from(tableHeader.cells).slice(1, -1).map(th => th.innerText.split(' ×')[0].trim());
+            localStorage.setItem('pro_studio_db', JSON.stringify(db));
+        }
+    }
+
+    function deleteColumn(btn) {
+        const idx = btn.parentElement.cellIndex;
+        btn.parentElement.remove();
+        Array.from(tableBody.querySelectorAll('tr')).forEach(tr => tr.deleteCell(idx));
+        autoSave();
+    }
+
+    function addNewColumn() {
+        if(!activeId) return;
+        const th = document.createElement('th'); th.contentEditable = true;
+        th.innerHTML = `NEW <button class="col-del" onclick="deleteColumn(this)">×</button>`;
+        tableHeader.insertBefore(th, tableHeader.lastElementChild);
+        Array.from(tableBody.querySelectorAll('tr')).forEach(tr => {
+            const td = document.createElement('td'); 
+            tr.insertBefore(td, tr.lastElementChild);
+        });
+        autoSave();
+    }
+
+    function clearTable() { tableBody.innerHTML = ""; updateSN(); notify("Cleared"); }
+    function updateSN() { Array.from(tableBody.querySelectorAll('tr')).forEach((r, i) => r.cells[0].innerText = i + 1); }
+
+    function renderHistory() {
+        const list = document.getElementById('historyList');
+        const db = JSON.parse(localStorage.getItem('pro_studio_db') || "[]");
+        list.innerHTML = db.map(s => `
+            <div class="history-item" style="background:${s.color}" onclick="loadSession(${s.id})">
+                <button class="del-session" onclick="removeHistory(event, ${s.id})">×</button>
+                <b>${s.name.substring(0,18)}</b><small>${s.date}</small>
+            </div>
+        `).join('');
+    }
+
+    function removeHistory(e, id) {
+        e.stopPropagation();
+        const db = JSON.parse(localStorage.getItem('pro_studio_db') || "[]").filter(s => s.id !== id);
+        localStorage.setItem('pro_studio_db', JSON.stringify(db));
+        if(activeId === id) { tableBody.innerHTML = ""; activeId = null; excelNameInput.value = ""; document.getElementById('auditPanel').style.display='none'; }
+        renderHistory();
+    }
+
+    function searchData() {
+        const q = document.getElementById('searchBox').value.toLowerCase();
+        Array.from(tableBody.querySelectorAll('tr')).forEach(tr => tr.style.display = tr.innerText.toLowerCase().includes(q) ? "" : "none");
+    }
+
+    function exportToExcel() {
+        if(!activeId) return;
+        const clone = document.getElementById("dataTable").cloneNode(true);
+        clone.querySelectorAll('.col-del').forEach(b => b.remove());
+        const headers = clone.querySelectorAll('th');
+        headers.forEach(th => {
+            let txt = th.innerText.trim();
+            if(txt.endsWith('×')) txt = txt.slice(0, -1).trim();
+            th.innerText = txt;
+        });
+        XLSX.writeFile(XLSX.utils.table_to_book(clone), `${excelNameInput.value || 'Report'}.xlsx`);
+    }
+
+    window.onload = () => { renderHistory(); const db = JSON.parse(localStorage.getItem('pro_studio_db') || "[]"); if(db.length) loadSession(db[0].id); };
+</script>
+</body>
+</html>
